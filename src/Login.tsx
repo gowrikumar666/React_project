@@ -16,7 +16,7 @@ interface LoginProps {
   onSwitchToSignIn?: () => void;
 }
 
-export default function Login({ onLoginSuccess, onSwitchToSignIn }: LoginProps) {
+export default function Login({ onLoginSuccess }: LoginProps) {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
