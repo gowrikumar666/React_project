@@ -65,27 +65,26 @@ export default function SignUpToken({ onSignUpSuccess, onSwitchToLogin }: SignUp
     setLoading(true);
 
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch('http://your-api.com/api/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Sign up failed');
+      // Get existing users from localStorage
+      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      
+      // Check if user already exists
+      if (storedUsers.some((u: any) => u.email === formData.email)) {
+        throw new Error('Email already registered');
       }
 
-      const data = await response.json();
+      // Add new user to localStorage
+      storedUsers.push({
+        email: formData.email,
+        password: formData.password,
+      });
+      localStorage.setItem('users', JSON.stringify(storedUsers));
+
+      // Simulate token (use timestamp-based token)
+      const token = `token_${Date.now()}`;
       
       // Store token and user info
-      login(data.token, formData.email);
+      login(token, formData.email);
       
       setSuccess('Account created successfully!');
       setFormData({ email: '', password: '', confirmPassword: '' });
@@ -100,7 +99,7 @@ export default function SignUpToken({ onSignUpSuccess, onSwitchToLogin }: SignUp
     }
   };
 
-   return (
+  return (
     <Container
       maxWidth={false}
       sx={{

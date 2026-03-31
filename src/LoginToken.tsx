@@ -57,27 +57,21 @@ export default function LoginToken({ onLoginSuccess, onSwitchToSignUp }: LoginTo
     setLoading(true);
 
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch('http://your-api.com/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      // Get stored users from localStorage
+      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      
+      // Find user with matching email and password
+      const user = storedUsers.find((u: any) => u.email === formData.email && u.password === formData.password);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+      if (!user) {
+        throw new Error('Invalid email or password');
       }
 
-      const data = await response.json();
-
+      // Simulate token (use timestamp-based token)
+      const token = `token_${Date.now()}`;
+      
       // Store token and user info
-      login(data.token, formData.email);
+      login(token, formData.email);
 
       if (formData.rememberMe) {
         localStorage.setItem('rememberMe', 'true');
@@ -96,7 +90,7 @@ export default function LoginToken({ onLoginSuccess, onSwitchToSignUp }: LoginTo
     }
   };
 
-   return (
+  return (
     <Container
       maxWidth={false}
       sx={{
@@ -203,4 +197,3 @@ export default function LoginToken({ onLoginSuccess, onSwitchToSignUp }: LoginTo
     </Container>
   );
 }
-
