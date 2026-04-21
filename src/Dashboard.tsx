@@ -1,4 +1,5 @@
-import { Box, Container, Typography, Card, CardContent } from '@mui/material';
+import { Box, Container, Typography, Card, CardContent, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import {
   Chart as ChartJS,
@@ -28,6 +29,7 @@ ChartJS.register(
 );
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   //const { user, token, logout } = useAuth();
   const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [forceUpdate, setForceUpdate] = useState(0);
@@ -194,9 +196,29 @@ export default function Dashboard() {
           py: { xs: 2, sm: 3, md: 4 },
         }}
       >
-        <Typography variant="h4" sx={{ mb: { xs: 2, sm: 3, md: 4 }, fontWeight: 'bold', fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
-          Dashboard
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: { xs: 2, sm: 3, md: 4 } }}>
+          <Typography variant="h4" sx={{ fontWeight: 'bold', fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
+            Dashboard
+          </Typography>
+          <Box>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/list')}
+              sx={{ minWidth: 120, mr: 1 }}
+            >
+              Go to List
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={() => navigate('/indiacomponent')}
+              sx={{ minWidth: 120 }}
+            >
+              India Form
+            </Button>
+          </Box>
+        </Box>
 
         <Box sx={{
           display: 'grid',
