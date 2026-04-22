@@ -77,6 +77,8 @@
 
 .list-header {
   display: grid;
+  justify-content: space-between;
+  align-items: center;
   grid-template-columns: 1.5fr 2fr 1fr 1.5fr 1fr;
   gap: 1rem;
   padding: 1rem 1.25rem;
@@ -89,6 +91,16 @@
   letter-spacing: 0.5px;
   border: 1px solid #e5e7eb;
   border-bottom: 2px solid #d1d5db;
+}
+
+.list-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.list-card-header button {
+  margin-left: auto;
 }
 
 .list-item {

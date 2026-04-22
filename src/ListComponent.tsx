@@ -1,9 +1,12 @@
 ﻿import React, { useEffect, useState } from 'react';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Edit, Delete, Download } from '@mui/icons-material';
+import { Tabs, Tab, Box } from '@mui/material';
 import './ListComponent.css';
+import { exportToExcel } from './excelExport';
+import * as XLSX from 'xlsx';
 import * as Yup from 'yup';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
+
 
 
 const validationSchema = Yup.object({
@@ -28,8 +31,11 @@ const emptyPerson: Omit<Person, 'id'> = {
   occupation: ''
 };
 
+
 const ListComponent: React.FC = () => {
   const [people, setPeople] = useState<Person[]>([]);
+  const [uploadedPeople, setUploadedPeople] = useState<Person[]>([]);
+  const [tab, setTab] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -162,9 +168,42 @@ const ListComponent: React.FC = () => {
     }
   };
 
-   const updateField = (field: keyof Omit<Person, 'id'>, value: string) => {
-    setModalPerson(prev => ({ ...prev, [field]: value }));
-  }; 
+  const handleExportExcel = () => {
+    if (people.length === 0) return;
+    // Remove id field for export if not needed, or keep as is
+    exportToExcel(people, 'people-list.xlsx');
+  };
+
+
+  // Handle Excel upload
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const data = evt.target?.result;
+      if (!data) return;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const json: Omit<Person, 'id'>[] = XLSX.utils.sheet_to_json(sheet);
+      // Send to backend
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(json),
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setUploadedPeople(updated.slice(-json.length)); // Show only uploaded
+        setTab(1); // Switch to uploaded tab
+        showToast('Excel data uploaded!', 'success');
+      } else {
+        showToast('Failed to upload Excel data', 'error');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
 
   return (
     <div className="list-component">
@@ -172,37 +211,91 @@ const ListComponent: React.FC = () => {
         <div className="card">
           <h2>People Manager</h2>
           <p>Open the modal to add or edit people records with a centered experience.</p>
-          <button className="primary-button" onClick={openAddModal}>Add New Person</button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginTop: 12 }}>
+            <button className="primary-button" onClick={openAddModal}>Add New Person</button>
+            <label style={{ margin: 0 }}>
+              <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleExcelUpload} />
+              <span className="primary-button" style={{ cursor: 'pointer', display: 'inline-block' }}>Upload Excel</span>
+            </label>
+          </div>
         </div>
 
-        <div className="list-card">
-          <h3>People List</h3>
-          <ul className="person-list">
-            <li className="list-header">
-              <span>Name</span>
-              <span>Address</span>
-              <span>Gender</span>
-              <span>Occupation</span>
-              <span style={{ textAlign: 'right' }}>Actions</span>
-            </li>
-            {people.length === 0 ? (
-              <li className="empty-state">No people added yet. Click Add New Person to begin.</li>
-            ) : (
-              people.map(person => (
-                <li key={person.id} className={`list-item ${lastAddedId === person.id ? 'list-item-new' : ''}`}>
-                  <span>{person.name}</span>
-                  <span>{person.address}</span>
-                  <span>{person.gender}</span>
-                  <span>{person.occupation}</span>
-                  <div className="list-item-actions">
-                    <button className="icon-button edit-button" onClick={() => openEditModal(person)} title="Edit"><EditIcon fontSize="small" /></button>
-                    <button className="icon-button delete-button" onClick={() => openConfirmDelete(person.id)} title="Delete"><DeleteIcon fontSize="small" /></button>
-                  </div>
-                </li>
-              ))
-            )}
-          </ul>
-        </div>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', marginTop: 2 }}>
+          <Tabs value={tab} onChange={(_, v) => setTab(v)}>
+            <Tab label="People List" />
+            <Tab label="Uploaded Excel" />
+          </Tabs>
+        </Box>
+
+        {tab === 0 && (
+          <div className="list-card">
+            <div className="list-card-header">
+              <h3>People List</h3>
+              <button
+                className="icon-button download-button"
+                onClick={handleExportExcel}
+                disabled={people.length === 0}
+              >
+                <Download fontSize="small" />
+              </button>
+            </div>
+            <ul className="person-list">
+              <li className="list-header">
+                <span>Name</span>
+                <span>Address</span>
+                <span>Gender</span>
+                <span>Occupation</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                  Actions
+                </span>
+              </li>
+              {people.length === 0 ? (
+                <li className="empty-state">No people added yet. Click Add New Person to begin.</li>
+              ) : (
+                people.map(person => (
+                  <li key={person.id} className={`list-item ${lastAddedId === person.id ? 'list-item-new' : ''}`}>
+                    <span>{person.name}</span>
+                    <span>{person.address}</span>
+                    <span>{person.gender}</span>
+                    <span>{person.occupation}</span>
+                    <div className="list-item-actions">
+                      <button className="icon-button edit-button" onClick={() => openEditModal(person)} title="Edit"><Edit fontSize="small" /></button>
+                      <button className="icon-button delete-button" onClick={() => openConfirmDelete(person.id)} title="Delete"><Delete fontSize="small" /></button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+
+        {tab === 1 && (
+          <div className="list-card">
+            <div className="list-card-header">
+              <h3>Uploaded Excel Data</h3>
+            </div>
+            <ul className="person-list">
+              <li className="list-header">
+                <span>Name</span>
+                <span>Address</span>
+                <span>Gender</span>
+                <span>Occupation</span>
+              </li>
+              {uploadedPeople.length === 0 ? (
+                <li className="empty-state">No uploaded data yet.</li>
+              ) : (
+                uploadedPeople.map((person, idx) => (
+                  <li key={person.id || idx} className="list-item">
+                    <span>{person.name}</span>
+                    <span>{person.address}</span>
+                    <span>{person.gender}</span>
+                    <span>{person.occupation}</span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
       </div>
 
       {toast.show && (
@@ -211,70 +304,61 @@ const ListComponent: React.FC = () => {
         </div>
       )}
 
-     {modalOpen && (
-  <Formik
-    initialValues={{
-      name: modalPerson.name || '',
-      address: modalPerson.address || '',
-      gender: modalPerson.gender || '',
-      occupation: modalPerson.occupation || '',
-    }}
-    validationSchema={validationSchema}
-    onSubmit={(values) => {
-      savePerson(values);
-      closeModal();
-    }}
-  >
-    {() => (
-      <div className="modal-overlay" onClick={closeModal}>
-        <div className="modal-card" onClick={e => e.stopPropagation()}>
-
-          <Form>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0 }}>
-                {modalMode === 'add' ? 'Add New Person' : 'Edit Person'}
-              </h3>
-
-              <div className="modal-actions" style={{ margin: 0 }}>
-                <button type="button" className="secondary-button" onClick={closeModal}>
-                  Cancel
-                </button>
-                <button type="submit" className="primary-button">
-                  {modalMode === 'add' ? 'Create' : 'Save'}
-                </button>
+      {modalOpen && (
+        <Formik
+          initialValues={{
+            name: modalPerson.name || '',
+            address: modalPerson.address || '',
+            gender: modalPerson.gender || '',
+            occupation: modalPerson.occupation || '',
+          }}
+          validationSchema={validationSchema}
+          onSubmit={(values) => {
+            savePerson(values);
+            closeModal();
+          }}
+        >
+          {() => (
+            <div className="modal-overlay" onClick={closeModal}>
+              <div className="modal-card" onClick={e => e.stopPropagation()}>
+                <Form>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0 }}>
+                      {modalMode === 'add' ? 'Add New Person' : 'Edit Person'}
+                    </h3>
+                    <div className="modal-actions" style={{ margin: 0 }}>
+                      <button type="button" className="secondary-button" onClick={closeModal}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="primary-button">
+                        {modalMode === 'add' ? 'Create' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="input-grid">
+                    <div>
+                      <Field name="name" placeholder="Name" />
+                      <ErrorMessage name="name" component="div" className="error" />
+                    </div>
+                    <div>
+                      <Field name="address" placeholder="Address" />
+                      <ErrorMessage name="address" component="div" className="error" />
+                    </div>
+                    <div>
+                      <Field name="gender" placeholder="Gender" />
+                      <ErrorMessage name="gender" component="div" className="error" />
+                    </div>
+                    <div>
+                      <Field name="occupation" placeholder="Occupation" />
+                      <ErrorMessage name="occupation" component="div" className="error" />
+                    </div>
+                  </div>
+                </Form>
               </div>
             </div>
-
-            <div className="input-grid">
-
-              <div>
-                <Field name="name" placeholder="Name" />
-                <ErrorMessage name="name" component="div" className="error" />
-              </div>
-
-              <div>
-                <Field name="address" placeholder="Address" />
-                <ErrorMessage name="address" component="div" className="error" />
-              </div>
-
-              <div>
-                <Field name="gender" placeholder="Gender" />
-                <ErrorMessage name="gender" component="div" className="error" />
-              </div>
-
-              <div>
-                <Field name="occupation" placeholder="Occupation" />
-                <ErrorMessage name="occupation" component="div" className="error" />
-              </div>
-
-            </div>
-          </Form>
-
-        </div>
-      </div>
-    )}
-  </Formik>
-)}
+          )}
+        </Formik>
+      )}
 
       {confirmOpen && (
         <div className="modal-overlay" onClick={cancelDelete}>

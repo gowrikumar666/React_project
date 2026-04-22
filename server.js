@@ -40,9 +40,15 @@ app.get('/api/people', async (req, res) => {
 app.post('/api/people', async (req, res) => {
   try {
     const people = await readData();
-    const nextId = Date.now();
-    const newPerson = { id: nextId, ...req.body };
-    const updated = [...people, newPerson];
+    let newPeople = [];
+    if (Array.isArray(req.body)) {
+      // Bulk upload
+      newPeople = req.body.map(person => ({ id: Date.now() + Math.random(), ...person }));
+    } else {
+      // Single person
+      newPeople = [{ id: Date.now(), ...req.body }];
+    }
+    const updated = [...people, ...newPeople];
     await writeData(updated);
     res.status(201).json(updated);
   } catch (error) {
