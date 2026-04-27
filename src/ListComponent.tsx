@@ -87,6 +87,15 @@ const ListComponent: React.FC = () => {
     setModalOpen(true);
   };
 
+  // Helper to refresh uploadedPeople after edit/delete
+  const refreshUploadedPeople = async () => {
+    const response = await fetch(apiUrl);
+    if (response.ok) {
+      const all = await response.json();
+      setUploadedPeople(all.slice(-uploadedPeople.length));
+    }
+  };
+
   const closeModal = () => {
     setModalOpen(false);
     setModalPerson(emptyPerson);
@@ -94,50 +103,57 @@ const ListComponent: React.FC = () => {
   };
 
   const savePerson = async (values: {
-  name: string;
-  address: string;
-  gender: string;
-  occupation: string;
-}) => {
-  try {
-    const method = modalMode === 'add' ? 'POST' : 'PUT';
-    const url = modalMode === 'add' ? apiUrl : `${apiUrl}/${editingId}`;
+    name: string;
+    address: string;
+    gender: string;
+    occupation: string;
+  }) => {
+    try {
+      const method = modalMode === 'add' ? 'POST' : 'PUT';
+      const url = modalMode === 'add' ? apiUrl : `${apiUrl}/${editingId}`;
 
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(values), // ✅ use Formik values
-    });
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      const message = errorData?.error || 'Unable to save person';
-      throw new Error(message);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const message = errorData?.error || 'Unable to save person';
+        throw new Error(message);
+      }
+
+      const updatedPeople = await response.json();
+      const sortedPeople = updatedPeople.sort((a: Person, b: Person) => b.id - a.id);
+      // Detect duplicate: if modalMode is add and no new record was added
+      if (modalMode === 'add') {
+        // Find the previous list length
+        const response2 = await fetch(apiUrl);
+        const beforeList = response2.ok ? await response2.json() : [];
+        // If the length did not increase, it's a duplicate
+        if (sortedPeople.length === beforeList.length) {
+          showToast('Duplicate record! Person already exists.', 'error');
+          return;
+        }
+      }
+      setPeople(sortedPeople);
+      if (tab === 1) await refreshUploadedPeople();
+
+      if (modalMode === 'add') {
+        const newPersonId = sortedPeople[0]?.id;
+        setLastAddedId(newPersonId);
+        showToast('🎉 Person added successfully!', 'success');
+        setTimeout(() => setLastAddedId(null), 2000);
+      } else {
+        showToast('✓ Person updated successfully!', 'success');
+      }
+    } catch (error) {
+      console.error('Unable to save person:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      showToast(errorMsg, 'error');
     }
-
-    const updatedPeople = await response.json();
-    const sortedPeople = updatedPeople.sort(
-      (a: Person, b: Person) => b.id - a.id
-    );
-
-    setPeople(sortedPeople);
-
-    if (modalMode === 'add') {
-      const newPersonId = sortedPeople[0]?.id;
-      setLastAddedId(newPersonId);
-      showToast('🎉 Person added successfully!', 'success');
-      setTimeout(() => setLastAddedId(null), 2000);
-    } else {
-      showToast('✓ Person updated successfully!', 'success');
-    }
-
-  } catch (error) {
-    console.error('Unable to save person:', error);
-    const errorMsg =
-      error instanceof Error ? error.message : 'Unknown error';
-    showToast(errorMsg, 'error');
-  }
-};
+  };
 
   const openConfirmDelete = (id: number) => {
     setPendingDeleteId(id);
@@ -153,7 +169,6 @@ const ListComponent: React.FC = () => {
     if (pendingDeleteId === null) {
       return;
     }
-
     try {
       const response = await fetch(`${apiUrl}/${pendingDeleteId}`, {
         method: 'DELETE',
@@ -162,6 +177,7 @@ const ListComponent: React.FC = () => {
       const updatedPeople = await response.json();
       const sortedPeople = updatedPeople.sort((a: Person, b: Person) => b.id - a.id);
       setPeople(sortedPeople);
+      if (tab === 1) await refreshUploadedPeople();
       cancelDelete();
     } catch (error) {
       console.warn('Unable to delete person.', error);
@@ -195,9 +211,19 @@ const ListComponent: React.FC = () => {
       });
       if (response.ok) {
         const updated = await response.json();
+        // Find how many were actually added
+        const uniqueKey = (p: any) => `${(p.name||'').trim().toLowerCase()}|${(p.address||'').trim().toLowerCase()}|${(p.gender||'').trim().toLowerCase()}|${(p.occupation||'').trim().toLowerCase()}`;
+        const before = new Set(updated.slice(0, -json.length).map(uniqueKey));
+        const actuallyAdded = json.filter(p => !before.has(uniqueKey(p)));
         setUploadedPeople(updated.slice(-json.length)); // Show only uploaded
         setTab(1); // Switch to uploaded tab
-        showToast('Excel data uploaded!', 'success');
+        if (actuallyAdded.length === 0) {
+          showToast('All uploaded records were duplicates!', 'error');
+        } else if (actuallyAdded.length < json.length) {
+          showToast('Some records were duplicates and skipped.', 'error');
+        } else {
+          showToast('Excel data uploaded!', 'success');
+        }
       } else {
         showToast('Failed to upload Excel data', 'error');
       }
@@ -280,6 +306,9 @@ const ListComponent: React.FC = () => {
                 <span>Address</span>
                 <span>Gender</span>
                 <span>Occupation</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                  Actions
+                </span>
               </li>
               {uploadedPeople.length === 0 ? (
                 <li className="empty-state">No uploaded data yet.</li>
@@ -290,6 +319,10 @@ const ListComponent: React.FC = () => {
                     <span>{person.address}</span>
                     <span>{person.gender}</span>
                     <span>{person.occupation}</span>
+                    <div className="list-item-actions">
+                      <button className="icon-button edit-button" onClick={() => openEditModal(person)} title="Edit"><Edit fontSize="small" /></button>
+                      <button className="icon-button delete-button" onClick={() => openConfirmDelete(person.id)} title="Delete"><Delete fontSize="small" /></button>
+                    </div>
                   </li>
                 ))
               )}

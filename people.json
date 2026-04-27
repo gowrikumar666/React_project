@@ -7,13 +7,6 @@
     "occupation": "front end "
   },
   {
-    "id": 1775474880581,
-    "name": "ashu",
-    "address": "bangalore",
-    "gender": "female",
-    "occupation": "insurance"
-  },
-  {
     "id": 1775475333643,
     "name": "Deepya bangaru thalli",
     "address": "Ananthapur",
@@ -21,17 +14,31 @@
     "occupation": "playing"
   },
   {
-    "id": 1775475903293,
+    "id": 1776935228588,
+    "name": "Yadava Gowri Kumar ",
+    "address": "Penukonda",
+    "gender": "male",
+    "occupation": "sjjdjdjjd"
+  },
+  {
+    "id": 1776756733437,
+    "name": "Ramaiah (Late)",
+    "address": "Penukonda",
+    "gender": "Male",
+    "occupation": "Business "
+  },
+  {
+    "id": 1776756676143,
+    "name": "Rathnamma ",
+    "address": "Penukonda",
+    "gender": "Femle",
+    "occupation": "Business"
+  },
+  {
+    "id": 1776937250573,
     "name": "pavan",
     "address": "hyderabad",
     "gender": "male",
     "occupation": "SAP"
-  },
-  {
-    "id": 1775476060321,
-    "name": "Aswini gooddd girl",
-    "address": "penukonda",
-    "gender": "female",
-    "occupation": "mother"
   }
 ]

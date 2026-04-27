@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -20,6 +21,7 @@ interface LoginTokenProps {
 
 export default function LoginToken({ onLoginSuccess, onSwitchToSignUp }: LoginTokenProps) {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -57,32 +59,27 @@ export default function LoginToken({ onLoginSuccess, onSwitchToSignUp }: LoginTo
     setLoading(true);
 
     try {
-      // Get stored users from localStorage
-      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-      
-      // Find user with matching email and password
-      const user = storedUsers.find((u: any) => u.email === formData.email && u.password === formData.password);
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
 
-      if (!user) {
-        throw new Error('Invalid email or password');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Login failed');
       }
 
-      // Simulate token (use timestamp-based token)
-      const token = `token_${Date.now()}`;
-      
-      // Store token and user info
-      login(token, formData.email);
-
-      if (formData.rememberMe) {
-        localStorage.setItem('rememberMe', 'true');
-      }
+      const data = await response.json();
+      login(data.token, data.user.email);
 
       setSuccess('Login successful!');
       setFormData({ email: '', password: '', rememberMe: false });
 
-      if (onLoginSuccess) {
-        setTimeout(onLoginSuccess, 1500);
-      }
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 interface AuthContextType {
   token: string | null;
@@ -13,30 +14,38 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => {
-    return localStorage.getItem('authToken');
+    return Cookies.get('token') || null;
   });
   const [user, setUser] = useState<{ email: string } | null>(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = Cookies.get('user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
+
+  useEffect(() => {
+    // Sync with cookies on mount
+    const cookieToken = Cookies.get('token');
+    const cookieUser = Cookies.get('user');
+    if (cookieToken) setTokenState(cookieToken);
+    if (cookieUser) setUser(JSON.parse(cookieUser));
+  }, []);
 
   const login = (newToken: string, email: string) => {
     setTokenState(newToken);
     setUser({ email });
-    localStorage.setItem('authToken', newToken);
-    localStorage.setItem('user', JSON.stringify({ email }));
+    Cookies.set('token', newToken, { expires: 1/24 }); // 1 hour
+    Cookies.set('user', JSON.stringify({ email }), { expires: 1/24 });
   };
 
   const logout = () => {
     setTokenState(null);
     setUser(null);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+    Cookies.remove('token');
+    Cookies.remove('user');
   };
 
   const setToken = (newToken: string) => {
     setTokenState(newToken);
-    localStorage.setItem('authToken', newToken);
+    Cookies.set('token', newToken, { expires: 1/24 });
   };
 
   return (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -18,6 +19,7 @@ interface SignUpProps {
 
 export default function SignUpToken({ onSignUpSuccess, onSwitchToLogin }: SignUpProps) {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -65,33 +67,27 @@ export default function SignUpToken({ onSignUpSuccess, onSwitchToLogin }: SignUp
     setLoading(true);
 
     try {
-      // Get existing users from localStorage
-      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-      
-      // Check if user already exists
-      if (storedUsers.some((u: any) => u.email === formData.email)) {
-        throw new Error('Email already registered');
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Sign up failed');
       }
 
-      // Add new user to localStorage
-      storedUsers.push({
-        email: formData.email,
-        password: formData.password,
-      });
-      localStorage.setItem('users', JSON.stringify(storedUsers));
+      const data = await response.json();
+      login(data.token, data.user.email);
 
-      // Simulate token (use timestamp-based token)
-      const token = `token_${Date.now()}`;
-      
-      // Store token and user info
-      login(token, formData.email);
-      
       setSuccess('Account created successfully!');
       setFormData({ email: '', password: '', confirmPassword: '' });
 
-      if (onSignUpSuccess) {
-        setTimeout(onSignUpSuccess, 1500);
-      }
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.');
     } finally {

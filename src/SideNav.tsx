@@ -23,7 +23,6 @@ const routes = [
   { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { label: 'People List', path: '/list', icon: <ListIcon /> },
   { label: 'India Form', path: '/indiacomponent', icon: <UploadFileIcon /> },
-  { label: 'All Components', path: '/all', icon: <DashboardIcon /> },
 ];
 
 export default function SideNav({ open, onClose }: { open: boolean; onClose: () => void }) {

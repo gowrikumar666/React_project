@@ -7,8 +7,8 @@ import SignUpToken from './SignUpToken';
 import Dashboard from './Dashboard';
 import ListComponent from './ListComponent';
 import IndiaComponent from './IndiaComponent';
-import AllInOne from './AllInOne';
-import { BrowserRouter as Router, Routes, Route, Navigate, BrowserRouter } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, BrowserRouter, useNavigate } from 'react-router-dom';
+import { Box } from '@mui/material';
 import Layout from './layout';
 
 type AuthMode = 'signin' | 'login';
@@ -34,7 +34,28 @@ export function AppContent() {
     );
   }
 
-  // ✅ NO BrowserRouter here
-  return <Layout />;
+  // Authenticated: render Layout with Routes
+  return (
+    <Layout>
+      <Suspense fallback={
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: 'calc(100vh - 64px)',
+          width: '100%',
+        }}>
+          Loading...
+        </Box>
+      }>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/list" element={<ListComponent />} />
+          <Route path="/indiacomponent" element={<IndiaComponent />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Suspense>
+    </Layout>
+  );
   
 }
