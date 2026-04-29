@@ -22,6 +22,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // Remove legacy localStorage auth data from older builds
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('users');
+    localStorage.removeItem('rememberMe');
+
     // Sync with cookies on mount
     const cookieToken = Cookies.get('token');
     const cookieUser = Cookies.get('user');

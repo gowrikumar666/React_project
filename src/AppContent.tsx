@@ -1,13 +1,14 @@
 
 import { Suspense, useState } from 'react';
 import './App.css';
-import { AuthProvider, useAuth } from './AuthContext';
+import { useAuth } from './AuthContext';
 import LoginToken from './LoginToken';
 import SignUpToken from './SignUpToken';
 import Dashboard from './Dashboard';
 import ListComponent from './ListComponent';
 import IndiaComponent from './IndiaComponent';
-import { BrowserRouter as Router, Routes, Route, Navigate, BrowserRouter, useNavigate } from 'react-router-dom';
+import DropdownComponent from './DropdownComponent';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Box } from '@mui/material';
 import Layout from './layout';
 
@@ -52,6 +53,7 @@ export function AppContent() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/list" element={<ListComponent />} />
           <Route path="/indiacomponent" element={<IndiaComponent />} />
+          <Route path="/dropdown" element={<DropdownComponent />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Suspense>

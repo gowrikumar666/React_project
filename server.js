@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { promises as fs } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import OpenAI from 'openai';
@@ -40,10 +41,33 @@ const writeData = async data => {
   await fs.writeFile(dataFile, JSON.stringify(data, null, 2), 'utf8');
 };
 
+const dedupePeople = (people) => {
+  const uniqueKey = (p) => `${(p.name||'').trim().toLowerCase()}|${(p.address||'').trim().toLowerCase()}|${(p.gender||'').trim().toLowerCase()}|${(p.occupation||'').trim().toLowerCase()}`;
+  return people.filter((p, idx, arr) => arr.findIndex(q => uniqueKey(q) === uniqueKey(p)) === idx);
+};
+
+const hashPassword = (password) => {
+  return crypto.createHash('sha256').update(password).digest('hex');
+};
+
+const isHashedPassword = (password) => /^[a-f0-9]{64}$/.test(password);
+
 const readUsers = async () => {
   try {
     const file = await fs.readFile(usersFile, 'utf8');
-    return JSON.parse(file);
+    const users = JSON.parse(file);
+    let updated = false;
+    const normalized = users.map(user => {
+      if (!isHashedPassword(user.password)) {
+        updated = true;
+        return { ...user, password: hashPassword(user.password) };
+      }
+      return user;
+    });
+    if (updated) {
+      await writeUsers(normalized);
+    }
+    return normalized;
   } catch (error) {
     if (error.code === 'ENOENT') {
       await fs.writeFile(usersFile, '[]', 'utf8');
@@ -60,12 +84,7 @@ const writeUsers = async data => {
 app.get('/api/people', async (req, res) => {
   try {
     const people = await readData();
-    // Deduplicate before sending
-    const uniqueKey = (p) => `${(p.name||'').trim().toLowerCase()}|${(p.address||'').trim().toLowerCase()}|${(p.gender||'').trim().toLowerCase()}|${(p.occupation||'').trim().toLowerCase()}`;
-    const deduped = people.filter((p, idx, arr) =>
-      arr.findIndex(q => uniqueKey(q) === uniqueKey(p)) === idx
-    );
-    // Optionally, write back deduped data to file
+    const deduped = dedupePeople(people);
     if (deduped.length !== people.length) {
       await writeData(deduped);
     }
@@ -73,6 +92,38 @@ app.get('/api/people', async (req, res) => {
   } catch (error) {
     console.error('GET /api/people error:', error);
     res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to read people data.' });
+  }
+});
+
+app.get('/api/tables', async (req, res) => {
+  res.json([
+    { id: 'people', label: 'People Records' },
+    { id: 'gender_summary', label: 'Gender Summary' },
+  ]);
+});
+
+app.get('/api/table-data', async (req, res) => {
+  try {
+    const table = String(req.query.table || '');
+    const people = dedupePeople(await readData());
+
+    if (table === 'people') {
+      return res.json(people);
+    }
+
+    if (table === 'gender_summary') {
+      const summary = people.reduce((acc, person) => {
+        const key = (person.gender || 'Unknown').trim();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+      return res.json(Object.entries(summary).map(([label, value]) => ({ label, value })));
+    }
+
+    res.status(400).json({ error: 'Unknown table selection' });
+  } catch (error) {
+    console.error('GET /api/table-data error:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Unable to load table data.' });
   }
 });
 
@@ -155,7 +206,7 @@ app.post('/api/signup', async (req, res) => {
     if (users.find(u => u.email === email)) {
       return res.status(400).json({ error: 'User already exists' });
     }
-    const newUser = { id: Date.now(), email, password }; // In real app, hash password
+    const newUser = { id: Date.now(), email, password: hashPassword(password) };
     users.push(newUser);
     await writeUsers(users);
     const token = jwt.sign({ id: newUser.id, email }, 'secretkey', { expiresIn: '1h' });
@@ -170,7 +221,8 @@ app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const users = await readUsers();
-    const user = users.find(u => u.email === email && u.password === password);
+    const hash = hashPassword(password);
+    const user = users.find(u => u.email === email && u.password === hash);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Drawer,
   List,
@@ -22,6 +21,7 @@ const drawerWidth = 250;
 const routes = [
   { label: 'Dashboard', path: '/dashboard', icon: <DashboardIcon /> },
   { label: 'People List', path: '/list', icon: <ListIcon /> },
+  { label: 'Data Table Selector', path: '/dropdown', icon: <UploadFileIcon /> },
   { label: 'India Form', path: '/indiacomponent', icon: <UploadFileIcon /> },
 ];
 
