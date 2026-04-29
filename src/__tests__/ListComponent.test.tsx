@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ListComponent from '../ListComponent';
+import { exportToExcel } from '../excelExport';
 
 // Mock CSS
 jest.mock('../ListComponent.css', () => ({}));
@@ -77,7 +78,7 @@ jest.mock('@mui/icons-material', () => ({
 
 // Mock fetch
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe('ListComponent', () => {
   const mockPeople = [
@@ -139,20 +140,16 @@ describe('ListComponent', () => {
   });
 
   it('exports to Excel when export button is clicked', () => {
-    const { exportToExcel } = require('../excelExport');
+  render(<ListComponent />);
 
-    render(<ListComponent />);
+  const downloadIcon = screen.getByTestId('DownloadIcon');
+  const exportButton = downloadIcon.closest('button');
 
-    // Find the download button by its icon
-    const downloadIcon = screen.getByTestId('DownloadIcon');
-    const exportButton = downloadIcon.closest('button');
-
-    if (exportButton) {
-      fireEvent.click(exportButton);
-      // Since the component might not have data loaded yet, we just check that the function exists
-      expect(typeof exportToExcel).toBe('function');
-    }
-  });
+  if (exportButton) {
+    fireEvent.click(exportButton);
+    expect(typeof exportToExcel).toBe('function');
+  }
+});
 
   it('switches between tabs', () => {
     render(<ListComponent />);
